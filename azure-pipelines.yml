@@ -1,0 +1,50 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+
+pool:
+  vmImage: ubuntu-latest
+stages:
+- stage: Destroy
+  jobs:
+  - deployment: Destroy
+    displayName: Terraform Destroy
+    pool:
+      vmImage: 'ubuntu-latest'
+    environment: prod
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+            clean: true
+          - task: TerraformInstaller@0
+            inputs:
+              terraformVersion: '1.0.6'
+          - script: ls
+            workingDirectory: $(System.DefaultWorkingDirectory)
+          - task: TerraformCLI@0
+            inputs:
+              command: 'init'
+              backendType: 'azurerm'
+              backendServiceArm: 'Microservices - Service Principal'
+              backendAzureRmResourceGroupName: 'rg-br-mateusmais-prod'
+              backendAzureRmStorageAccountName: 'mateusmaisterraform'
+              backendAzureRmContainerName: 'tfstate'
+              backendAzureRmKey: 'Rancher/aks-rancher.tfstate'
+              allowTelemetryCollection: true
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+          - task: TerraformCLI@0
+            inputs:
+              command: 'destroy'
+              environmentServiceName: 'Microservices - Service Principal'
+              runAzLogin: true
+              allowTelemetryCollection: true
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+          - task: PublishBuildArtifacts@1
+            inputs:
+              PathtoPublish: '$(System.DefaultWorkingDirectory)/tfplan.yaml'
+              ArtifactName: 'drop'
+              publishLocation: 'Container'

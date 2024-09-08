@@ -1,0 +1,97 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- main
+- develop
+- release
+
+pool:
+  vmImage: ubuntu-latest
+stages:
+- stage: Plan
+  jobs:
+  - deployment: Plan
+    displayName: Terraform Plan
+    pool:
+      vmImage: 'ubuntu-latest'
+    environment: dev
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+            clean: true
+          - task: TerraformInstaller@0
+            inputs:
+              terraformVersion: '1.0.6'
+          - script: ls
+            workingDirectory: $(System.DefaultWorkingDirectory)
+          - task: TerraformCLI@0
+            inputs:
+              command: 'init'
+              backendType: 'azurerm'
+              backendServiceArm: 'Microservices - Service Principal'
+              backendAzureRmResourceGroupName: 'rg-br-mateusmais-prod'
+              backendAzureRmStorageAccountName: 'mateusmaisterraform'
+              backendAzureRmContainerName: 'tfstate'
+              backendAzureRmKey: 'Rancher/aks-rancher.tfstate'
+              allowTelemetryCollection: true
+              workingDirectory: '$(System.DefaultWorkingDirectory)/rancher'
+          - task: TerraformCLI@0
+            inputs:
+              command: 'plan'
+              environmentServiceName: 'Microservices - Service Principal'
+              runAzLogin: true
+              commandOptions: '-out=tfplan.yaml'
+              allowTelemetryCollection: true
+              workingDirectory: '$(System.DefaultWorkingDirectory)/rancher'
+          - task: PublishBuildArtifacts@1
+            inputs:
+              PathtoPublish: '$(System.DefaultWorkingDirectory)/rancher/tfplan.yaml'
+              ArtifactName: 'drop'
+              publishLocation: 'Container'
+- stage: Apply
+  jobs:
+  - deployment: Apply
+    displayName: Terraform Apply
+    pool:
+      vmImage: 'ubuntu-latest'
+    environment: prod
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+            clean: true
+          - task: TerraformInstaller@0
+            inputs:
+              terraformVersion: '1.0.6'
+          - task: DownloadPipelineArtifact@2
+            inputs:
+              buildType: 'current'
+              targetPath: '$(System.ArtifactsDirectory)'
+          - script: cp -r $(System.ArtifactsDirectory)/drop/tfplan.yaml $(System.DefaultWorkingDirectory)/rancher/tfplan.yaml
+          - script: ls
+            workingDirectory: $(System.DefaultWorkingDirectory)
+          - task: TerraformCLI@0
+            inputs:
+              command: 'init'
+              backendType: 'azurerm'
+              backendServiceArm: 'Microservices - Service Principal'
+              backendAzureRmResourceGroupName: 'rg-br-mateusmais-prod'
+              backendAzureRmStorageAccountName: 'mateusmaisterraform'
+              backendAzureRmContainerName: 'tfstate'
+              backendAzureRmKey: 'Rancher/aks-rancher.tfstate'
+              allowTelemetryCollection: true
+              workingDirectory: '$(System.DefaultWorkingDirectory)/rancher'
+          - task: TerraformCLI@0
+            inputs:
+              command: 'apply'
+              environmentServiceName: 'Microservices - Service Principal'
+              runAzLogin: true
+              commandOptions: '--auto-approve tfplan.yaml'
+              allowTelemetryCollection: true
+              workingDirectory: '$(System.DefaultWorkingDirectory)/rancher'
