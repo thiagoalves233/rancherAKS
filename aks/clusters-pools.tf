@@ -31,8 +31,8 @@ resource "azurerm_kubernetes_cluster" "aks_rancher" {
       }
     }
     service_principal {
-        client_id     = "84d28679-2f09-4464-800a-93d34fde3dda"
-        client_secret = "D4D.kslmwNMUNIkf2U6MyupRqLIwi-RVZj"
+        client_id     = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+        client_secret = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
     }
     role_based_access_control {
        enabled = true
